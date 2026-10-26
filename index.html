@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌸 Period Tracker</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(
+                135deg,
+                #ff9a9e,
+                #fad0c4,
+                #fbc2eb,
+                #a18cd1
+            );
+        }
+
+        .container {
+            width: 100%;
+            max-width: 420px;
+            padding: 28px;
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.22);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            text-align: center;
+        }
+
+        h1 {
+            color: #8e3568;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #66334f;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            text-align: left;
+            margin: 15px 0 7px;
+            color: #66334f;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            outline: none;
+            background: rgba(255, 255, 255, 0.65);
+            font-size: 15px;
+        }
+
+        input:focus {
+            border-color: #d65a91;
+            box-shadow: 0 0 5px rgba(214, 90, 145, 0.4);
+        }
+
+        button {
+            width: 100%;
+            padding: 13px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 10px;
+            background: #d65a91;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #b94278;
+            transform: translateY(-1px);
+        }
+
+        #result {
+            margin-top: 22px;
+            padding: 15px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.35);
+            color: #66334f;
+            text-align: left;
+            line-height: 1.8;
+            overflow-wrap: anywhere;
+        }
+
+        #downloadBtn {
+            display: none;
+            background: #7954a1;
+        }
+
+        #downloadBtn:hover {
+            background: #624087;
+        }
+
+        .note {
+            margin-top: 18px;
+            font-size: 12px;
+            color: #66334f;
+            line-height: 1.5;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>🌸 Period Tracker</h1>
+
+        <p class="subtitle">
+            Track your cycle and view estimated dates 💗
+        </p>
+
+        <label for="lastDate">Last Period Start Date</label>
+        <input type="date" id="lastDate" required>
+
+        <label for="cycle">Average Cycle Length (days)</label>
+        <input
+            type="number"
+            id="cycle"
+            min="1"
+            max="90"
+            value="28"
+            required
+        >
+
+        <label for="days">Period Duration (days)</label>
+        <input
+            type="number"
+            id="days"
+            min="1"
+            max="15"
+            value="5"
+            required
+        >
+
+        <button type="button" onclick="calculate()">
+            💖 Calculate My Cycle
+        </button>
+
+        <div id="result" class="hidden" aria-live="polite"></div>
+
+        <button
+            type="button"
+            id="downloadBtn"
+            onclick="downloadCSV()"
+        >
+            📥 Download My Data (CSV)
+        </button>
+
+        <p class="note">
+            💗 Period, ovulation and fertile-window dates are estimates
+            and may vary from cycle to cycle. This tracker should not
+            be used to prevent pregnancy or diagnose a medical condition.
+            Downloaded CSV files may contain private health information;
+            keep them somewhere secure.
+        </p>
+
+    </div>
+
+    <script>
+        let trackerData = null;
+
+        // Format a date as YYYY-MM-DD using local calendar dates.
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+
+            return `${year}-${month}-${day}`;
+        }
+
+        // Add days to a date without changing the original date.
+        function addDays(date, numberOfDays) {
+            const result = new Date(date);
+            result.setDate(result.getDate() + numberOfDays);
+            return result;
+        }
+
+        function calculate() {
+            const dateInput = document.getElementById("lastDate").value;
+            const cycle = Number(document.getElementById("cycle").value);
+            const days = Number(document.getElementById("days").value);
+
+            const resultDiv = document.getElementById("result");
+            const downloadBtn = document.getElementById("downloadBtn");
+
+            // Validate user input.
+            if (!dateInput) {
+                alert("Please select your last period start date.");
+                return;
+            }
+
+            if (!Number.isInteger(cycle) || cycle < 1 || cycle > 90) {
+                alert("Please enter a cycle length between 1 and 90 days.");
+                return;
+            }
+
+            if (!Number.isInteger(days) || days < 1 || days > 15) {
+                alert("Please enter a period duration between 1 and 15 days.");
+                return;
+            }
+
+            const parts = dateInput.split("-").map(Number);
+
+            const lastPeriod = new Date(
+                parts[0],
+                parts[1] - 1,
+                parts[2]
+            );
+
+            // Check that the date is valid.
+            if (
+                lastPeriod.getFullYear() !== parts[0] ||
+                lastPeriod.getMonth() !== parts[1] - 1 ||
+                lastPeriod.getDate() !== parts[2]
+            ) {
+                alert("Please enter a valid date.");
+                return;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (lastPeriod > today) {
+                alert("Last period start date cannot be in the future.");
+                return;
+            }
+
+            // Calculate estimated dates.
+            const nextPeriod = addDays(lastPeriod, cycle);
+            const nextPeriodEnd = addDays(nextPeriod, days - 1);
+
+            const ovulation = addDays(nextPeriod, -14);
+            const fertileStart = addDays(ovulation, -5);
+            const fertileEnd = addDays(ovulation, 1);
+
+            // Save the latest calculation for CSV download.
+            trackerData = {
+                lastPeriod: formatDate(lastPeriod),
+                cycleLength: cycle,
+                periodDuration: days,
+                nextPeriod: formatDate(nextPeriod),
+                nextPeriodEnd: formatDate(nextPeriodEnd),
+                ovulation: formatDate(ovulation),
+                fertileStart: formatDate(fertileStart),
+                fertileEnd: formatDate(fertileEnd)
+            };
+
+            resultDiv.innerHTML = `
+                <strong>🌷 Your Estimated Cycle Dates</strong><br><br>
+
+                🩸 <strong>Last Period Started:</strong><br>
+                ${trackerData.lastPeriod}<br>
+
+                📅 <strong>Next Period:</strong><br>
+                ${trackerData.nextPeriod}<br>
+
+                🌸 <strong>Estimated Period End:</strong><br>
+                ${trackerData.nextPeriodEnd}<br>
+
+                🥚 <strong>Estimated Ovulation:</strong><br>
+                ${trackerData.ovulation}<br>
+
+                💗 <strong>Estimated Fertile Window:</strong><br>
+                ${trackerData.fertileStart} to ${trackerData.fertileEnd}<br>
+
+                🔄 <strong>Cycle Length:</strong>
+                ${cycle} days<br>
+
+                🩷 <strong>Period Duration:</strong>
+                ${days} days
+            `;
+
+            resultDiv.classList.remove("hidden");
+            downloadBtn.style.display = "block";
+        }
+
+        // Download the calculated data as a CSV file.
+        function downloadCSV() {
+            if (!trackerData) {
+                alert("Please calculate your cycle first.");
+                return;
+            }
+
+            const rows = [
+                ["Field", "Value"],
+                ["Last Period Start Date", trackerData.lastPeriod],
+                ["Cycle Length (days)", trackerData.cycleLength],
+                ["Period Duration (days)", trackerData.periodDuration],
+                ["Estimated Next Period Start", trackerData.nextPeriod],
+                ["Estimated Period End", trackerData.nextPeriodEnd],
+                ["Estimated Ovulation Date", trackerData.ovulation],
+                ["Estimated Fertile Window Start", trackerData.fertileStart],
+                ["Estimated Fertile Window End", trackerData.fertileEnd]
+            ];
+
+            // Escape CSV values correctly.
+            const csvContent = rows
+                .map(row =>
+                    row.map(value => {
+                        const text = String(value);
+                        return `"${text.replace(/"/g, '""')}"`;
+                    }).join(",")
+                )
+                .join("\r\n");
+
+            // Add a BOM so spreadsheet apps display text correctly.
+            const blob = new Blob(
+                ["\uFEFF" + csvContent],
+                { type: "text/csv;charset=utf-8;" }
+            );
+
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+
+            link.href = url;
+            link.download = "Period_Tracker_Data.csv";
+
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            URL.revokeObjectURL(url);
+        }
+
+        // Press Enter to calculate.
+        document.addEventListener("keydown", function(event) {
+            if (
+                event.key === "Enter" &&
+                document.activeElement.tagName !== "BUTTON"
+            ) {
+                calculate();
+            }
+        });
+    </script>
+
+</body>
+</html>
